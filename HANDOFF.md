@@ -121,7 +121,7 @@ WINEDEBUG=+module <copy>/CrossOver.app/Contents/SharedSupport/CrossOver/bin/wine
 ## 8. 提交与发布状态
 
 - 本次开始前仓库无任何已跟踪文件（全部 untracked）。
-- 已完成：初始 commit `a977e34f325fcf2602d5baffa0dd14d4b272707b`，后续 `141b1e6`（交接记录）、`d06ab21`（注册表回滚测试）均已推送到 `origin/main`；未 force push。
+- 已完成：初始 commit `a977e34f325fcf2602d5baffa0dd14d4b272707b`，后续 `141b1e6`（交接记录）、`d06ab21`（注册表回滚测试）、`88c85db`（隔离验证与复现文档）均已推送到 `origin/main`；未 force push，远端 `refs/heads/main` 与本地一致。
 - 初始提交 11 个文件、1500 行；`payloads/`、`__pycache__/` 未提交。
 - 未打 tag、未创建 GitHub Release；在没有 FH4 运行验证前不应宣称“可玩”。
 
