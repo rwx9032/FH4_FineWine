@@ -1,0 +1,12 @@
+/payloads/
+/build/
+__pycache__/
+*.py[cod]
+*.dll
+*.dylib
+*.so
+*.dmg
+*.app/
+*.bak-fh4
+*.fh4-rollback-stage/
+.DS_Store
