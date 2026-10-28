@@ -296,6 +296,15 @@ class Core(unittest.TestCase):
             f.assert_pristine(self)
             self.assertTrue((backup / 'manifest.json').is_file())
 
+    def test_rollback_preserves_unrelated_registry_changes(self):
+        with environment() as f:
+            backup = f.base / 'backup'; f.install(backup)
+            reg = f.bottle / 'user.reg'; reg.write_bytes(reg.read_bytes() + b'\n[Software\\\\Vendor\\\\App] 1\n"keep"="yes"\n')
+            fh4.rollback(backup, check_idle=False)
+            data = reg.read_bytes()
+            self.assertEqual(fh4.reg_override_value(data), 'native')
+            self.assertIn(b'"keep"="yes"', data)
+
     def test_failure_restores_app_and_bottle(self):
         with environment() as f:
             backup = f.base / 'backup'; f.fail_codesign = True

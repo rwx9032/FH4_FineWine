@@ -56,7 +56,7 @@
   1. 环境变量补齐原工具的 `D3DM_VENDOR_ID=0x8086`、`D3DM_DEVICE_ID=0x56a1`。
   2. 持久写入 `HKCU\Software\Wine\DllOverrides` 的 `"apd12"="builtin"`，并把原行以 base64 存入 manifest；回滚精确恢复。原因见第 5 节。
 
-测试：`python3.13 -m unittest discover -s tests` → **21 tests, OK (skipped=1)**。跳过的是需要 `FH4_STOCK_KERNEL` 的真实 stock 测试；本地有 payloads 时 `test_real_payload_inventory_when_present` 会执行。
+测试：`python3.13 -m unittest discover -s tests` → **22 tests, OK (skipped=1)**。跳过的是需要 `FH4_STOCK_KERNEL` 的真实 stock 测试；本地有 payloads 时 `test_real_payload_inventory_when_present` 会执行。
 
 ## 5. Stage C：隔离运行验证（关键证据）
 
