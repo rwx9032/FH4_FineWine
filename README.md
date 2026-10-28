@@ -65,4 +65,4 @@
 
 **未验证**：没有目标 FH4 可执行文件，因此没有游戏启动、进入世界、渲染正确性、帧率或稳定性结论；没有安装进用户正在使用的 CrossOver/Endfield；固定 RVA VEH 在真实游戏版本上的效果未知；没有供应商签名。
 
-详见 [兼容性矩阵](docs/compatibility.md)、[来源记录](docs/PROVENANCE.md) 与现场交接 [HANDOFF.md](HANDOFF.md)。
+详见 [兼容性矩阵](docs/compatibility.md)、[来源记录](docs/PROVENANCE.md)、[隔离验证日志](docs/verification.md)、[复现步骤](docs/reproduce.md) 与现场交接 [HANDOFF.md](HANDOFF.md)。
