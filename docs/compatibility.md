@@ -1,6 +1,6 @@
 # 兼容性与验证矩阵
 
-最后更新：2026-10-28。以 [HANDOFF.md](../HANDOFF.md) 为现场记录。
+最后更新：2026-10-29。以 [HANDOFF.md](../HANDOFF.md) 为现场记录。
 
 ## 组件边界
 
@@ -25,7 +25,7 @@ Apple GPTK 4.0 beta 3 中包含至少三个不同层面的组件，不能互相�
 | `d3d12.dll` 装载 | 通过 | 11 个导出，序号 100–110；`GetProcAddress("D3D12CreateDevice")` 成功 |
 | `apd12.dll` 装载 | 通过，需 builtin 覆盖 | 未覆盖时按 native 查找失败 `c0000135`；注册表 `apd12=builtin` 后成功 |
 | Unix 胶水 | 通过 | `apd12.so` → `../../external/libd3dshared.dylib`，与 `d3d12.so` 相同 |
-| 环境变量 | 通过 | 写入 `CX_GRAPHICS_BACKEND`、`HB_D3D12_REAL`、两个 `HB_TSSHIM_*`、`D3DM_VENDOR_ID`、`D3DM_DEVICE_ID`；保留 `WINEMSYNC` |
+| FH4 bottle 环境变量 | 配置实现 | 仅写入所选 bottle：`D3DM_VENDOR_ID=0x8086`、`D3DM_DEVICE_ID=0x56a1`、`D3DM_DEVICE_DESCRIPTION=Intel(R) Arc(TM) A750 Graphics`；同步 `CX_GRAPHICS_BACKEND`、`HB_D3D12_REAL`、两个 `HB_TSSHIM_*`，保留 `WINEMSYNC` 和其他未管理项 |
 | `D3D12CreateDevice` ABI | 通过 | 64 位探针以 `rcx=NULL`、`edx=0xb000`、`r8=&IID`、`r9=&out` 调用，返回 `S_OK` 且得到非空设备指针 |
 | ad-hoc 签名 | 通过 | `codesign --verify --all-architectures --deep --strict` |
 | 安装 / `--replace` / 回滚 | 通过 | 两次安装后逐级回滚，app、bottle、`user.reg` 均恢复；末尾 `state=pristine` |
@@ -35,6 +35,7 @@ Apple GPTK 4.0 beta 3 中包含至少三个不同层面的组件，不能互相�
 
 ## 未验证
 
+- 没有查询 DXGI 实际枚举出的伪装适配器 ID/名称。原工具与 GPTK 4.0b3 `D3DMetal.framework` 的静态字符串含这三个环境变量名和值，但字符串存在不等于实际枚举结果正确；本项目只把它们写入指定 FH4 bottle。
 - 没有目标 `ForzaHorizon4.exe`（也未固定其 SHA-256），因此没有启动游戏、进入世界、渲染正确性、帧率、稳定性或存档验证。
 - 没有把补丁安装进用户正在使用的 CrossOver 或 Endfield bottle；Endfield 会话未被触碰。
 - 没有验证固定 RVA 的 VEH 补丁在真实 FH4 版本上的效果；目前没有已验证的游戏构建，`install` 始终要求显式 `--allow-unverified-game`；可选的 EXE 与 SHA-256 只固定身份，不能证明固定 RVA 兼容。
@@ -53,3 +54,5 @@ Apple GPTK 4.0 beta 3 中包含至少三个不同层面的组件，不能互相�
 - 不接受与已知 stock 哈希不符的 `kernelbase.dll`，不做模糊匹配。
 - 不在 Wine/CrossOver 进程运行时安装或回滚。
 - 不覆盖运行中的 CrossOver、不重启 Endfield、不修改游戏画质或 video 注册表设置。
+
+伪装适配器环境只属于目标 FH4 bottle；不写全局环境或 Endfield bottle，也不改游戏 video 设置。

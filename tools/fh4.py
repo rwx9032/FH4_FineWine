@@ -41,7 +41,8 @@ UNIX = Path('lib64/apple_gptk/wine/x86_64-unix')
 EXT = Path('lib64/apple_gptk/external')
 ALIAS_TARGET = '../../external/libd3dshared.dylib'
 ENV = {'CX_GRAPHICS_BACKEND':'d3dmetal','HB_D3D12_REAL':'apd12.dll','HB_TSSHIM_FIX_WORLD_ENTRY':'1',
-       'HB_TSSHIM_EXPLICIT_INPUT_OFFSETS':'1','D3DM_VENDOR_ID':'0x8086','D3DM_DEVICE_ID':'0x56a1'}
+       'HB_TSSHIM_EXPLICIT_INPUT_OFFSETS':'1','D3DM_VENDOR_ID':'0x8086','D3DM_DEVICE_ID':'0x56a1',
+       'D3DM_DEVICE_DESCRIPTION':'Intel(R) Arc(TM) A750 Graphics'}
 MARK_BEGIN = ';; ---- FH4 FineWine BEGIN ----'
 MARK_END = ';; ---- FH4 FineWine END ----'
 MANAGED = [WIN / 'd3d12.dll', WIN / 'apd12.dll', UNIX / 'apd12.so']

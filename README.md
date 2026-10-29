@@ -44,7 +44,7 @@
 
 - 应用内 `kernelbase.dll`（仅从已知 stock 哈希生成）、Apple GPTK `x86_64-windows` 下的 `d3d12.dll`/`apd12.dll`、`x86_64-unix/apd12.so` 链接；
 - bottle `drive_c/windows/system32` 下的三份 DLL；
-- bottle `cxbottle.conf` 的 FH4 环境块（`CX_GRAPHICS_BACKEND`、`HB_D3D12_REAL`、`HB_TSSHIM_*`、`D3DM_VENDOR_ID`、`D3DM_DEVICE_ID`），保留 `WINEMSYNC`；
+- 仅目标 FH4 bottle 的 `cxbottle.conf` 中写入 `D3DM_VENDOR_ID=0x8086`、`D3DM_DEVICE_ID=0x56a1`、`D3DM_DEVICE_DESCRIPTION=Intel(R) Arc(TM) A750 Graphics`，保留 `WINEMSYNC` 和其他未管理项；
 - bottle `user.reg` 的最小 `DllOverrides` 修改：`"apd12"="builtin"`（CrossOver 启动器会删除 `WINEDLLOVERRIDES`，因此必须写注册表）；
 - 最后执行 ad-hoc 签名并验证。
 
@@ -67,5 +67,7 @@
 **已在隔离副本中验证**：CrossOver 26.3.0.39832、D3DMetal 4.0b3；`d3d12` 装载与 11 个导出、`apd12` builtin 装载、`apd12.so` 链接、`D3D12CreateDevice` 返回 `S_OK` 且产生非空设备、ad-hoc 签名、安装/`--replace`/回滚、失败注入恢复、注册表原值恢复。
 
 **未验证**：没有目标 FH4 可执行文件，因此没有游戏启动、进入世界、渲染正确性、帧率或稳定性结论；没有安装进用户正在使用的 CrossOver/Endfield；固定 RVA VEH 在真实游戏版本上的效果未知；没有供应商签名。
+
+上述三项伪装显卡变量仅写入用户明确指定的 FH4 bottle。D3DMetal 4.0b3 framework 的静态字符串包含这三个变量名，但本项目没有验证 DXGI 实际枚举出的适配器名称/ID，也没有据此宣称 FH4 可玩或视频设置兼容；工具不修改游戏 video 设置。
 
 详见 [兼容性矩阵](docs/compatibility.md)、[来源记录](docs/PROVENANCE.md)、[隔离验证日志](docs/verification.md)、[复现步骤](docs/reproduce.md) 与现场交接 [HANDOFF.md](HANDOFF.md)。

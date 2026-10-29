@@ -16,7 +16,8 @@ fh4 = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(fh4)
 
 CONF = (b'[Bottle]\n"WineArch" = "win64"\n[EnvironmentVariables]\n"WINEMSYNC" = "0"\n'
-        b'"CX_GRAPHICS_BACKEND" = "dxmt"\n[Other]\n"x" = "y"\n')
+        b'"CX_GRAPHICS_BACKEND" = "dxmt"\n"CUSTOM_KEEP" = "yes"\n'
+        b'"D3DM_DEVICE_DESCRIPTION" = "Previous adapter"\n[Other]\n"x" = "y"\n')
 USER_REG = (b'WINE REGISTRY Version 2\n\n'
             b'[Software\\\\Wine\\\\DllOverrides] 1793220789\n#time=1dd671e56b4dde4\n'
             b'"apd12"="native"\n"d3d12"="native,builtin"\n\n'
@@ -107,7 +108,13 @@ class Fixture:
         test.assertEqual(os.readlink(self.cx / fh4.UNIX / 'apd12.so'), fh4.ALIAS_TARGET)
         test.assertEqual((self.system / 'kernelbase.dll').read_bytes(), self.payload_data['kernelbase.dll'])
         test.assertEqual((self.system / 'd3d12.dll').read_bytes(), self.payload_data['d3d12.dll'])
-        test.assertIn(fh4.MARK_BEGIN.encode(), (self.bottle / 'cxbottle.conf').read_bytes())
+        conf = (self.bottle / 'cxbottle.conf').read_bytes()
+        test.assertIn(fh4.MARK_BEGIN.encode(), conf)
+        test.assertIn(b'"D3DM_VENDOR_ID" = "0x8086"', conf)
+        test.assertIn(b'"D3DM_DEVICE_ID" = "0x56a1"', conf)
+        test.assertIn(b'"D3DM_DEVICE_DESCRIPTION" = "Intel(R) Arc(TM) A750 Graphics"', conf)
+        test.assertIn(b'"CUSTOM_KEEP" = "yes"', conf)
+        test.assertIn(b'"WINEMSYNC" = "0"', conf)
         test.assertEqual(fh4.reg_override_value((self.bottle / 'user.reg').read_bytes()), 'builtin')
         test.assertEqual(fh4.state(self.cx, self.bottle)['kind'], 'installed')
 
@@ -135,7 +142,15 @@ class Core(unittest.TestCase):
         a = fh4.config(CONF)
         self.assertEqual(a, fh4.config(a))
         self.assertIn(b'"WINEMSYNC" = "0"', a)
+        self.assertIn(b'"CUSTOM_KEEP" = "yes"', a)
         self.assertEqual(a.count(b'"CX_GRAPHICS_BACKEND"'), 1)
+        self.assertEqual(a.count(b'"D3DM_VENDOR_ID"'), 1)
+        self.assertEqual(a.count(b'"D3DM_DEVICE_ID"'), 1)
+        self.assertEqual(a.count(b'"D3DM_DEVICE_DESCRIPTION"'), 1)
+        self.assertIn(b'"D3DM_VENDOR_ID" = "0x8086"', a)
+        self.assertIn(b'"D3DM_DEVICE_ID" = "0x56a1"', a)
+        self.assertIn(b'"D3DM_DEVICE_DESCRIPTION" = "Intel(R) Arc(TM) A750 Graphics"', a)
+        self.assertNotIn(b'Previous adapter', a)
         self.assertIn(b'[Other]\n"x" = "y"', a)
         self.assertEqual(a.count(fh4.MARK_BEGIN.encode()), 1)
 
