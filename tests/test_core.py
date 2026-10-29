@@ -262,11 +262,18 @@ class Core(unittest.TestCase):
         busy = subprocess.CompletedProcess(
             ['ps'], 0, '  42 /Applications/CrossOver.app/Contents/SharedSupport/CrossOver/bin/wineserver\n'
                       '  43 /usr/bin/python3\n', '')
-        with mock.patch.object(fh4.subprocess, 'run', return_value=busy):
-            self.assertEqual(len(fh4.active()), 1)
+        with mock.patch.object(fh4.subprocess, 'run', return_value=busy) as query:
+            self.assertEqual(fh4.active(), ['42 (Wine)'])
+            self.assertEqual(query.call_args.args[0], ['/bin/ps', '-axo', 'pid=,comm='])
         modified = subprocess.CompletedProcess(['ps'], 0, '  44 /Applications/CrossOver_Endfield_Patch.app/Contents/MacOS/CrossOver\n', '')
         with mock.patch.object(fh4.subprocess, 'run', return_value=modified):
-            self.assertEqual(len(fh4.active()), 1)
+            self.assertEqual(fh4.active(), ['44 (CrossOver)'])
+        spaced = subprocess.CompletedProcess(['ps'], 0, '  45 /Applications/CrossOver Private Name.app/Contents/MacOS/CrossOver\n  46 /usr/bin/python3\n', '')
+        with mock.patch.object(fh4.subprocess, 'run', return_value=spaced):
+            self.assertEqual(fh4.active(), ['45 (CrossOver)'])
+        malformed = subprocess.CompletedProcess(['ps'], 0, 'unexpected output\n', '')
+        with mock.patch.object(fh4.subprocess, 'run', return_value=malformed):
+            with self.assertRaises(ValueError): fh4.active()
         quiet = subprocess.CompletedProcess(['ps'], 0, '  43 /usr/bin/python3\n', '')
         with mock.patch.object(fh4.subprocess, 'run', return_value=quiet):
             self.assertEqual(fh4.active(), [])

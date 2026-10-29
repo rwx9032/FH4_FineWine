@@ -269,21 +269,23 @@ def ext_info(external):
 
 
 def active():
+    """List blocking processes without reading or revealing their arguments."""
     try:
-        result = subprocess.run(['/bin/ps', '-axo', 'pid=,comm=,args='], capture_output=True, text=True, check=False)
+        result = subprocess.run(['/bin/ps', '-axo', 'pid=,comm='], capture_output=True, text=True, check=False)
     except OSError as e:
         raise ValueError('Cannot inspect processes; refusing to modify: ' + str(e)) from e
     require(result.returncode == 0 and bool(result.stdout.strip()), 'Empty process list; refusing to modify')
-    bad = []
-    pattern = re.compile(r'(?:^|[/\s])(wineserver|wine|wine64|wineloader|wine-preloader|wine64-preloader)(?:\s|$)')
+    bad = []; parsed = 0
+    wine_commands = {'wineserver', 'wine', 'wine64', 'wineloader', 'wine-preloader', 'wine64-preloader'}
     for line in result.stdout.splitlines():
         parts = line.strip().split(None, 1)
-        if len(parts) < 2: continue
-        pid, rest = parts
-        low = rest.lower()
-        if (pattern.search(low) or re.search(r'/cross_?over[^/\s]*\.app/contents/', low)
-                or 'crossover-hosted application' in low):
-            bad.append('%s %s' % (pid, rest))
+        if len(parts) != 2 or not parts[0].isdigit(): continue
+        pid, command = parts; parsed += 1; low = command.lower()
+        if low.rsplit('/', 1)[-1] in wine_commands:
+            bad.append('%s (Wine)' % pid)
+        elif re.search(r'/cross_?over[^/]*\.app/contents/', low) or 'crossover-hosted application' in low:
+            bad.append('%s (CrossOver)' % pid)
+    require(parsed > 0, 'Unrecognized process list; refusing to modify')
     return bad
 
 
