@@ -30,9 +30,10 @@
   --gptk-external "/path/to/GPTK-4.x/external" \
   --backup "$HOME/FH4-FineWine-backup" \
   --fh4-exe "$HOME/.../ForzaHorizon4.exe" \
-  --fh4-sha256 "<该构建的 SHA-256>"
+  --fh4-sha256 "<该构建的 SHA-256>" \
+  --allow-unverified-game
 
-# 未固定游戏构建时，必须显式承担风险
+# 所有构建均尚未验证 VEH；即使提供哈希也必须明确选择
 ./install.sh install ... --allow-unverified-game
 
 # 按备份恢复 app、bottle 文件、环境变量与 DllOverride
@@ -46,6 +47,8 @@
 - bottle `cxbottle.conf` 的 FH4 环境块（`CX_GRAPHICS_BACKEND`、`HB_D3D12_REAL`、`HB_TSSHIM_*`、`D3DM_VENDOR_ID`、`D3DM_DEVICE_ID`），保留 `WINEMSYNC`；
 - bottle `user.reg` 的最小 `DllOverrides` 修改：`"apd12"="builtin"`（CrossOver 启动器会删除 `WINEDLLOVERRIDES`，因此必须写注册表）；
 - 最后执行 ad-hoc 签名并验证。
+
+提供 EXE 和 SHA-256 只能固定文件身份，不能验证 VEH 的固定地址适配；目前没有已验证的 FH4 构建。`--allow-unverified-game` 是明确接受这一未知风险的选择。
 
 回滚恢复 app 快照、bottle 文件、`cxbottle.conf` 和 `apd12` 覆盖的原值。备份在回滚成功后会保留 manifest 以支持恢复；确认不再需要时可手动删除。
 

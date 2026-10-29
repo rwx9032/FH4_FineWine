@@ -22,6 +22,8 @@
 
 转换器 pkg 中的二进制与 Evaluation 运行时是不同组件；安装转换器不会生成或替换 `external` 下的 D3DMetal 4。`tools/fh4.py` 从不执行 pkg 安装器，也不下载 Apple 组件。
 
+2026-10-29 对用户提供的同名 Evaluation DMG 做了只读复核：SHA-256 与上表完全一致，`hdiutil verify` 校验通过。当前环境无法重新挂载该镜像（DiskImages 返回“设备未配置”）；本表中的 external 文件信息来自 2026-10-28 的既有只读提取与隔离测试记录。该记录确认文件版本、架构和哈希，但没有保存 Apple 代码签名验证结论；因此此处不对 framework/dylib 的签名状态作断言。在已检查的现有 CrossOver bottles 和 `/Volumes/LocalDisk/Games` 中未找到目标 `ForzaHorizon4.exe`，没有进行游戏验证。
+
 ## 用户提供的补丁载荷
 
 原工具 app 提供了以下 PE DLL，工具按 SHA-256 校验后从本机导入。原 app 未运行；这些摘要仅用于识别输入文件。

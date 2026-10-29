@@ -63,7 +63,7 @@ python3.13 -m unittest discover -s tests -v
 
 ```sh
 ./install.sh install ... --fh4-exe <ForzaHorizon4.exe> --fh4-sha256 <sha> \
-  --backup <new-backup>
+  --backup <new-backup> --allow-unverified-game
 ```
 
-并在可回滚副本中记录启动/世界加载/崩溃/帧率；不要把 `--allow-unverified-game` 的结果当成已完成游戏验证。
+哈希只能固定文件身份，不能证明固定 RVA 适配。须明确接受未验证风险，并在可回滚副本中记录启动/世界加载/崩溃/帧率；不要把 `--allow-unverified-game` 的结果当成已完成游戏验证。

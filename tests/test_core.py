@@ -139,6 +139,10 @@ class Core(unittest.TestCase):
         self.assertIn(b'[Other]\n"x" = "y"', a)
         self.assertEqual(a.count(fh4.MARK_BEGIN.encode()), 1)
 
+    def test_config_rejects_duplicate_sections_and_incomplete_marker(self):
+        with self.assertRaises(ValueError): fh4.config(CONF + b'\n[EnvironmentVariables]\n')
+        with self.assertRaises(ValueError): fh4.config(CONF + (fh4.MARK_BEGIN + '\n').encode())
+
     def test_dll_override_is_merged_idempotent_and_restorable(self):
         first, previous = fh4.dll_override(USER_REG)
         self.assertEqual(previous, b'"apd12"="native"')
@@ -260,6 +264,9 @@ class Core(unittest.TestCase):
                       '  43 /usr/bin/python3\n', '')
         with mock.patch.object(fh4.subprocess, 'run', return_value=busy):
             self.assertEqual(len(fh4.active()), 1)
+        modified = subprocess.CompletedProcess(['ps'], 0, '  44 /Applications/CrossOver_Endfield_Patch.app/Contents/MacOS/CrossOver\n', '')
+        with mock.patch.object(fh4.subprocess, 'run', return_value=modified):
+            self.assertEqual(len(fh4.active()), 1)
         quiet = subprocess.CompletedProcess(['ps'], 0, '  43 /usr/bin/python3\n', '')
         with mock.patch.object(fh4.subprocess, 'run', return_value=quiet):
             self.assertEqual(fh4.active(), [])
@@ -282,7 +289,10 @@ class Core(unittest.TestCase):
             with self.assertRaises(ValueError): fh4.game_evidence(exe, None, False)
             with self.assertRaises(ValueError): fh4.game_evidence(exe, '0' * 64, False)
             pinned = fh4.game_evidence(exe, fh4.digest(exe.read_bytes()), False)
-            self.assertEqual(pinned['status'], 'pinned')
+            self.assertEqual(pinned['status'], 'pinned-unverified')
+            self.assertEqual(fh4.game_evidence(exe, fh4.digest(exe.read_bytes()), True)['status'], 'unverified')
+            with self.assertRaises(ValueError): f.install(f.base / 'backup', evidence=pinned)
+            with self.assertRaises(ValueError): fh4.game_evidence(None, '0' * 64, True)
             with self.assertRaises(ValueError): f.install(f.base / 'backup', evidence={'status': 'none'})
             self.assertFalse((f.base / 'backup').exists())
 
@@ -331,6 +341,32 @@ class Core(unittest.TestCase):
             f.assert_installed(self)
             self.assertFalse((f.app.parent / (f.app.name + '.fh4-rollback-stage')).exists())
             self.assertTrue((backup / 'pre-rollback').is_dir())
+
+    def test_failed_rollback_preserves_existing_registry_override(self):
+        with environment() as f:
+            backup = f.base / 'backup'; f.install(backup)
+            reg = f.bottle / 'user.reg'
+            reg.write_bytes(reg.read_bytes().replace(b'"apd12"="builtin"', b'"apd12"="native"'))
+            real = fh4.restore_entries; calls = []
+            def flaky(entries, backup_dir, bottle):
+                calls.append(1)
+                if len(calls) == 1: raise ValueError('simulated restore failure')
+                return real(entries, backup_dir, bottle)
+            with mock.patch.object(fh4, 'restore_entries', flaky):
+                with self.assertRaises(ValueError): fh4.rollback(backup, check_idle=False)
+            self.assertEqual(fh4.reg_override_value(reg.read_bytes()), 'native')
+
+    def test_snapshot_mismatch_refuses_install_without_modification(self):
+        with environment() as f:
+            original = f.fake_run
+            def incomplete(args):
+                original(args)
+                if args[0] == '/usr/bin/ditto':
+                    (Path(args[-1]) / 'Contents' / 'injected').write_bytes(b'different')
+            with mock.patch.object(fh4, 'run', side_effect=incomplete):
+                with self.assertRaisesRegex(ValueError, 'snapshot differs'): f.install(f.base / 'backup')
+            self.assertFalse((f.base / 'backup').exists())
+            f.assert_pristine(self)
 
     def test_manifest_and_snapshot_tampering_is_detected(self):
         with environment() as f:

@@ -25,7 +25,7 @@
 ```sh
 ./install.sh check  --app <CrossOver.app> --bottle <bottle> [--gptk-external <external>]
 ./install.sh install --app <CrossOver.app> --bottle <bottle> --backup <不存在路径> \
-    (--fh4-exe <exe> --fh4-sha256 <sha> | --allow-unverified-game) [--replace]
+    --allow-unverified-game [--fh4-exe <exe> --fh4-sha256 <sha>] [--replace]
 ./install.sh rollback <backup>
 ./install.sh patch-kernelbase <stock> <new>
 ./install.sh inspect <dll>...
@@ -49,7 +49,7 @@
 - manifest format 2：app 树摘要、Info.plist 哈希、bottle 条目哈希/模式/symlink 目标、payload 哈希、GPTK 信息、FH4 证据、`bottle_override` 原值。
 - 回滚先校验 manifest/树/条目，再 staging；任一步失败会反向恢复 app 与 bottle，保留 stage 供人工处理。
 - `check` 与 `install` 的空闲要求已分离；`ps` 失败/空输出都按“非空闲”处理。
-- 固定 RVA VEH 不再无条件启用：`install` 需要 `--fh4-exe` + `--fh4-sha256`，或显式 `--allow-unverified-game`。
+- 固定 RVA VEH 尚无已验证构建：`install` 始终要求 `--allow-unverified-game`；可选的 `--fh4-exe` + `--fh4-sha256` 只固定身份，不能证明地址适配。
 - 重复安装需 `--replace`；foreign 状态一律拒绝覆盖。
 - 新增 `inspect`：PE 架构/导入/导出序号/COFF 模块与函数名（只读）。
 - **本阶段新增的两个关键修复**（来自 Stage C 实测）：
@@ -128,8 +128,8 @@ WINEDEBUG=+module <copy>/CrossOver.app/Contents/SharedSupport/CrossOver/bin/wine
 
 ## 9. 未解决 / 下一步（按优先级）
 
-1. **真实 FH4 验证（唯一实质阻塞）**：需要目标 `ForzaHorizon4.exe` 及其 SHA-256。用 `install --fh4-exe ... --fh4-sha256 ...` 安装到**可回滚的副本**，记录：能否启动、是否进入世界、`HB_TSSHIM_*` 日志、崩溃栈、帧率。不得在 Endfield 运行时操作。
-2. 若 FH4 构建与固定 RVA 不匹配，VEH 补丁需要按新版本重新定位；当前工具会因 SHA 不符拒绝，这是正确行为。
+1. **真实 FH4 验证（唯一实质阻塞）**：需要目标 `ForzaHorizon4.exe` 及其 SHA-256。仅在用户明确接受未知 VEH 风险时，用 `install --allow-unverified-game --fh4-exe ... --fh4-sha256 ...` 安装到**可回滚的副本**，记录：能否启动、是否进入世界、`HB_TSSHIM_*` 日志、崩溃栈、帧率。不得在 Endfield 运行时操作。
+2. 若 FH4 构建与固定 RVA 不匹配，VEH 补丁需要按新版本重新定位；当前工具会因提供的文件 SHA 与预期不符拒绝；即使相符也不代表该构建兼容。
 3. 若要装进用户日常 CrossOver，先复制 app 与 bottle，验证回滚，再在空闲时执行；不要直接覆盖正在使用的 app。
 4. 供应商签名无法恢复；如需分发，明确说明 ad-hoc 签名。
 5. 可选的后续：把 `inspect` 输出保存为发布附件；为真实 FH4 构建增加固定哈希矩阵；在 CI 上跑一次确认 workflow。

@@ -37,7 +37,7 @@ Apple GPTK 4.0 beta 3 中包含至少三个不同层面的组件，不能互相�
 
 - 没有目标 `ForzaHorizon4.exe`（也未固定其 SHA-256），因此没有启动游戏、进入世界、渲染正确性、帧率、稳定性或存档验证。
 - 没有把补丁安装进用户正在使用的 CrossOver 或 Endfield bottle；Endfield 会话未被触碰。
-- 没有验证固定 RVA 的 VEH 补丁在真实 FH4 版本上的效果；`install` 默认要求 `--fh4-exe` 加 `--fh4-sha256`，或显式 `--allow-unverified-game`。
+- 没有验证固定 RVA 的 VEH 补丁在真实 FH4 版本上的效果；目前没有已验证的游戏构建，`install` 始终要求显式 `--allow-unverified-game`；可选的 EXE 与 SHA-256 只固定身份，不能证明固定 RVA 兼容。
 - 没有恢复供应商签名；安装后是 ad-hoc 签名。
 - 没有从 COFF 符号恢复 shim 源码；只提取了模块和函数名清单。
 

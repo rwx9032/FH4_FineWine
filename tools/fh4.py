@@ -281,15 +281,18 @@ def active():
         if len(parts) < 2: continue
         pid, rest = parts
         low = rest.lower()
-        if (pattern.search(low) or '/crossover.app/contents/' in low
-                or '/cross_over.app/contents/' in low or 'crossover-hosted application' in low):
+        if (pattern.search(low) or re.search(r'/cross_?over[^/\s]*\.app/contents/', low)
+                or 'crossover-hosted application' in low):
             bad.append('%s %s' % (pid, rest))
     return bad
 
 
 def config(original):
     text = original.decode('utf-8')
+    require(text.count(MARK_BEGIN) == text.count(MARK_END) and text.count(MARK_BEGIN) <= 1, 'Malformed FH4 config markers')
+    require(len(re.findall(r'(?m)^\[EnvironmentVariables\][ \t]*$', text)) == 1, 'Expected exactly one [EnvironmentVariables] section')
     pattern = r'(?ms)^' + re.escape(MARK_BEGIN) + r'\n.*?^' + re.escape(MARK_END) + r'\n?'
+    require(MARK_BEGIN not in text or re.search(pattern, text), 'Malformed FH4 config marker order')
     text = re.sub(pattern, '', text)
     match = re.search(r'(?m)^\[EnvironmentVariables\][ \t]*$', text)
     require(match is not None, 'No [EnvironmentVariables] section')
@@ -449,7 +452,7 @@ def preflight(app, bottle, external, need_idle=False):
     require(str(info.get('CFBundleShortVersionString')) == '26.3' and str(info.get('CFBundleVersion', '')).startswith('26.3.0.'),
             'Expected CrossOver 26.3.0')
     system = bottle / 'drive_c/windows/system32'
-    require(system.is_dir() and (bottle / 'cxbottle.conf').is_file(), 'Invalid bottle')
+    require(system.is_dir() and not system.is_symlink() and (bottle / 'cxbottle.conf').is_file(), 'Invalid bottle or symlinked system32')
     require(system.resolve(strict=True).is_relative_to(bottle), 'Bottle system32 escapes the bottle')
     for n in SHA: validate_payload(n, (PAYLOADS / n).read_bytes())
     for rel in (KB, WIN / 'd3d12.dll', WIN / 'apd12.dll', WIN / 'd3d12core.dll', UNIX / 'd3d12.so', UNIX / 'apd12.so'):
@@ -463,6 +466,9 @@ def preflight(app, bottle, external, need_idle=False):
     if alias.exists() or alias.is_symlink():
         require(alias.is_symlink() and os.readlink(alias) == ALIAS_TARGET, 'Unexpected existing apd12.so')
     ext = ext_info(external if external else cx / EXT)
+    if external:
+        src = existing(external, 'GPTK external'); dest = (cx / EXT).resolve(strict=True)
+        require(src == dest or not src.is_relative_to(dest), 'GPTK source is inside the external directory being replaced')
     conf = (bottle / 'cxbottle.conf'); require(not conf.is_symlink(), 'Bottle config is a symlink')
     config(conf.read_bytes())
     reg = bottle / 'user.reg'
@@ -478,15 +484,17 @@ def preflight(app, bottle, external, need_idle=False):
 
 
 def game_evidence(exe, expected, allow_unverified):
+    """Pinning a file only proves identity; no game build is verified for the VEH."""
+    require(not expected or exe, '--fh4-sha256 requires --fh4-exe')
     if exe:
         p = existing(exe, 'FH4 executable')
         require(p.is_file(), 'FH4 executable is not a file')
         data = p.read_bytes(); require(len(data) > 0x40 and data[:2] == b'MZ', 'FH4 executable is not a PE file')
-        sha = digest(data)
-        require(expected, 'Pin the expected FH4 build with --fh4-sha256; a path alone is not version evidence')
-        require(sha == expected.lower(), 'FH4 SHA-256 mismatch: %s != %s' % (sha, expected.lower()))
-        return {'status': 'pinned', 'path': str(p), 'sha256': sha, 'size': len(data)}
-    if allow_unverified: return {'status': 'unverified', 'note': 'fixed-RVA VEH enabled without a pinned game build'}
+        require(expected and re.fullmatch(r'[0-9a-fA-F]{64}', expected), 'Provide a 64-digit expected SHA-256 with --fh4-sha256')
+        sha = digest(data); require(sha == expected.lower(), 'FH4 SHA-256 mismatch: %s != %s' % (sha, expected.lower()))
+        return {'status': 'unverified' if allow_unverified else 'pinned-unverified', 'path': str(p), 'sha256': sha,
+                'size': len(data), 'note': 'Hash pins identity only; fixed-RVA VEH compatibility is unverified'}
+    if allow_unverified: return {'status': 'unverified', 'note': 'fixed-RVA VEH enabled without a verified game build'}
     return {'status': 'none'}
 
 
@@ -574,6 +582,9 @@ def rollback(backup, check_idle=True):
     stage = app.with_name(app.name + '.fh4-rollback-stage'); require(not stage.exists() and not stage.is_symlink(), 'Rollback stage already exists')
     pre = backup / 'pre-rollback'; require(not pre.exists() and not pre.is_symlink(), 'Previous rollback staging exists'); pre.mkdir(mode=0o700)
     current = rel_entries([p for p, _ in checked], bottle, pre)
+    current_override = None
+    if manifest.get('bottle_override') is not None:
+        _, current_override = dll_override((bottle / 'user.reg').read_bytes())
     os.rename(app, stage)
     try:
         run(['/usr/bin/ditto', backup / 'app', app])
@@ -586,7 +597,7 @@ def rollback(backup, check_idle=True):
             os.rename(stage, app)
             restore_entries(current, pre, bottle)
             if manifest.get('bottle_override') is not None:
-                write_override(bottle, b'"' + REG_NAME.encode('ascii') + b'"="' + REG_VALUE.encode('ascii') + b'"')
+                write_override(bottle, current_override)
         except BaseException as revert:
             raise ValueError('Rollback failed and automatic revert failed; previous app kept at %s: %s; revert: %s' % (stage, error, revert)) from error
         raise
@@ -608,8 +619,8 @@ def prepare_backup(app, bottle, backup):
 
 def install(app, bottle, external, backup, replace=False, evidence=None):
     app, bottle, cx, info, st = preflight(app, bottle, external, need_idle=True)
-    require(isinstance(evidence, dict) and evidence.get('status') in ('pinned', 'unverified'),
-            'Refusing fixed-RVA VEH without pinned game evidence or explicit --allow-unverified-game')
+    require(isinstance(evidence, dict) and evidence.get('status') == 'unverified',
+            'No game build is verified for this VEH; explicit --allow-unverified-game is required')
     if st['kind'] != 'pristine' and not replace:
         raise ValueError('Target is already installed or modified (%s); use --replace to back it up and reinstall' % st['kind'])
     if st['kind'] == 'foreign':
@@ -619,13 +630,15 @@ def install(app, bottle, external, backup, replace=False, evidence=None):
     try:
         run(['/usr/bin/ditto', app, backup / 'app'])
         require((backup / 'app/Contents/Info.plist').is_file(), 'Application snapshot is incomplete')
+        source_tree = tree_digest(app); snapshot_tree = tree_digest(backup / 'app')
+        require(source_tree == snapshot_tree, 'Application snapshot differs from the source; refusing install')
         paths = [bottle / 'cxbottle.conf'] + [bottle / 'drive_c/windows/system32' / n for n in SHA]
         entries = rel_entries(paths, bottle, backup)
         reg = bottle / 'user.reg'
         reg_data = reg.read_bytes(); _, reg_previous = dll_override(reg_data)
         manifest = {'format': 2, 'app': str(app), 'bottle': str(bottle), 'gptk': info, 'fh4': evidence,
                     'app_info_sha256': readhash(app / 'Contents/Info.plist'),
-                    'app_tree_sha256': tree_digest(backup / 'app'),
+                    'app_tree_sha256': snapshot_tree,
                     'payload_sha256': SHA, 'bottle_entries': entries,
                     'bottle_override': {'path': 'user.reg', 'name': REG_NAME,
                                         'previous': base64.b64encode(reg_previous).decode('ascii') if reg_previous else None}}
@@ -694,7 +707,7 @@ def main():
                               'note': 'Loading and FH4 gameplay have not been tested.'}, indent=2))
         elif args.cmd == 'install':
             evidence = game_evidence(args.fh4_exe, args.fh4_sha256, args.allow_unverified_game)
-            require(evidence['status'] != 'none', 'Refusing fixed-RVA VEH for an unverified FH4 build: pass --fh4-exe with --fh4-sha256, or --allow-unverified-game')
+            require(evidence['status'] == 'unverified', 'No game build is verified for this VEH; explicit --allow-unverified-game is required even when a SHA-256 is supplied')
             install(args.app, args.bottle, args.gptk_external, args.backup, args.replace, evidence)
         else: rollback(args.backup)
     except (ValueError, OSError, struct.error, UnicodeError) as e:
